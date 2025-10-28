@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import SGDClassifier
 import random
 import io
+import time
 
 app = Flask(__name__)
 

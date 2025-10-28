@@ -27,7 +27,34 @@ def initialize_population(pop_size, feature_count, true_ratio=0.7):
 
 
 def evaluate_fitness(chromosome, X_train, X_test, y_train, y_test):
-    pass
+    """
+    Evaluate fitness of a chromosome using logistic regression.
+    """
+    try:
+        selected_features = [i for i, gene in enumerate(chromosome) if gene == 1]
+        if not selected_features:
+            return 0.0
+
+        X_train_selected = X_train[:, selected_features]
+        X_test_selected = X_test[:, selected_features]
+
+        if np.isnan(X_train_selected).any() or np.isnan(X_test_selected).any():
+            return 0.0
+
+        model = SGDClassifier(
+            loss="log_loss",
+            max_iter=200,
+            tol=1e-3,
+            n_jobs=-1,
+            random_state=42
+        )
+        model.fit(X_train_selected, y_train)
+        accuracy = model.score(X_test_selected, y_test)
+        return accuracy
+
+    except Exception:
+        return 0.0
+
 
 
 def crossover(p1, p2, rate):

@@ -89,16 +89,29 @@ class APIClient {
         return await this.makeRequest('/run_variance_threshold', requestData);
     }
 
-    async runComparison() {
-        const gaParams = this.getGAParameters();
-        const vtParams = this.getVarianceThresholdParameters();
+    async runSelectKBest() {
+        const parameters = this.getSelectKBestParameters();
         const requestData = {
-            ...gaParams,
-            ...vtParams,
+            ...parameters,
             csvData: this.app.state.csvData
         };
 
-        this.app.updateStatus('Running comparison (GA vs Variance Threshold)...', 'loading');
+        this.app.updateStatus('Running SelectKBest...', 'loading');
+        return await this.makeRequest('/run_select_kbest', requestData);
+    }
+
+    async runComparison() {
+        const gaParams = this.getGAParameters();
+        const vtParams = this.getVarianceThresholdParameters();
+        const kbParams = this.getSelectKBestParameters ? this.getSelectKBestParameters() : {};
+        const requestData = {
+            ...gaParams,
+            ...vtParams,
+            ...kbParams,
+            csvData: this.app.state.csvData
+        };
+
+        this.app.updateStatus('Running comparison (GA vs Variance Threshold vs SelectKBest)...', 'loading');
         return await this.makeRequest('/run_comparison', requestData);
     }
 
@@ -135,6 +148,20 @@ class APIClient {
 
         return {
             threshold: parseFloat(vtThreshold),
+            idColumn: idColumn === '' ? null : parseInt(idColumn),
+            targetColumn: parseInt(targetColumn)
+        };
+    }
+
+    getSelectKBestParameters() {
+        const kVal = document.getElementById('kbestK')?.value || '';
+        const scoreFunc = document.getElementById('kbestScoreFunc')?.value || 'f_classif';
+        const idColumn = document.getElementById('idColumn')?.value || '';
+        const targetColumn = document.getElementById('targetColumn')?.value;
+
+        return {
+            k: kVal === '' ? null : parseInt(kVal),
+            scoreFunc: scoreFunc,
             idColumn: idColumn === '' ? null : parseInt(idColumn),
             targetColumn: parseInt(targetColumn)
         };

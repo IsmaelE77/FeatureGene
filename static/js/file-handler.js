@@ -140,16 +140,6 @@ class FileHandler {
             return false;
         }
 
-        // Check if all rows have the same number of columns
-        const expectedColumns = headers.length;
-        for (let i = 1; i < Math.min(lines.length, 10); i++) { // Check first 10 rows
-            const columns = lines[i].split(',').length;
-            if (columns !== expectedColumns) {
-                this.app.showToast(`Row ${i + 1} has ${columns} columns, expected ${expectedColumns}.`, 'error');
-                return false;
-            }
-        }
-
         return true;
     }
 

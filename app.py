@@ -9,7 +9,7 @@ from sklearn.feature_selection import VarianceThreshold
 import random
 import io
 import time
-
+import os
 app = Flask(__name__)
 
 
@@ -243,6 +243,44 @@ def run_variance_threshold_selection(
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/list_datasets", methods=["GET"])
+def list_datasets():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    ds_dir = os.path.join(base_dir, "dataset")
+    try:
+        if not os.path.isdir(ds_dir):
+            return jsonify({"datasets": []})
+        files = [f for f in os.listdir(ds_dir) if f.lower().endswith(".csv")]
+        return jsonify({"datasets": files})
+    except Exception as e:
+        return jsonify({"error": f"Failed to list datasets: {str(e)}"})
+
+@app.route("/get_dataset", methods=["POST"])
+def get_dataset():
+    data = request.json or {}
+    name = data.get("name")
+    if not name:
+        return jsonify({"error": "Dataset name is required"})
+
+    if os.path.sep in name or os.path.altsep and os.path.altsep in name:
+        return jsonify({"error": "Invalid dataset name"})
+    if not name.lower().endswith(".csv"):
+        return jsonify({"error": "Only CSV datasets are supported"})
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    ds_dir = os.path.join(base_dir, "dataset")
+    file_path = os.path.join(ds_dir, name)
+
+    if not os.path.isfile(file_path):
+        return jsonify({"error": f"Dataset not found: {name}"})
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            csv_content = f.read()
+        return jsonify({"name": name, "csvData": csv_content})
+    except Exception as e:
+        return jsonify({"error": f"Failed to read dataset: {str(e)}"})
 
 @app.route("/run_ga", methods=["POST"])
 def run_ga():

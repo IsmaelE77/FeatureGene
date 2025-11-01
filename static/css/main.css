@@ -304,3 +304,24 @@ body {
     display: none;
   }
 }
+
+/* Guide page table fixes (scoped) */
+#guide-supported-datasets thead {
+  background-color: var(--gray-100);
+}
+
+.dark #guide-supported-datasets thead {
+  background-color: var(--gray-700);
+}
+
+#guide-supported-datasets thead th {
+  color: var(--gray-800);
+}
+
+.dark #guide-supported-datasets thead th {
+  color: #ffffff;
+}
+
+#guide-supported-datasets .overflow-x-auto {
+  justify-content: center;
+}

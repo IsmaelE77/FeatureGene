@@ -354,6 +354,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/guide")
+def guide():
+    return render_template("guide.html")
+
+
 @app.route("/list_datasets", methods=["GET"])
 def list_datasets():
     base_dir = os.path.dirname(os.path.abspath(__file__))

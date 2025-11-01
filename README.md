@@ -31,6 +31,11 @@ pip install -r requirements.txt
 ```
 
 4. Run the app:
+   
+```bash
+gunicorn app:app --workers 4
+```
+or 
 
 ```bash
 python app.py
@@ -76,6 +81,12 @@ pip install -r requirements.txt
 ```
 
 4. Run the app:
+
+```powershell
+gunicorn app:app --workers 4
+```
+
+or 
 
 ```powershell
 python app.py

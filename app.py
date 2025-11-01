@@ -6,6 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif, chi2, mutual_info_classif
+from joblib import parallel_backend
 import random
 import io
 import time
@@ -45,16 +46,19 @@ def evaluate_fitness(chromosome, X_train, X_test, y_train, y_test):
 
         model = SGDClassifier(
             loss="log_loss",
-            max_iter=200,
+            max_iter=1000,
             tol=1e-3,
-            n_jobs=-1,
             random_state=42
         )
-        model.fit(X_train_selected, y_train)
+
+        with parallel_backend("threading", n_jobs=1):
+            model.fit(X_train_selected, y_train)
+
         accuracy = model.score(X_test_selected, y_test)
         return accuracy
 
-    except Exception:
+    except Exception as error:
+        print("An exception occurred:", error)
         return 0.0
 
 

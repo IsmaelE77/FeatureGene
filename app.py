@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif, chi2, mutual_info_classif
 from joblib import parallel_backend
+from sklearn.preprocessing import LabelEncoder
 import random
 import io
 import time
@@ -85,7 +86,7 @@ def load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx=None):
         id_column_idx: Optional index of ID column to exclude from features.
 
     Returns:
-        tuple: (X_train, X_test, y_train, y_test, feature_headers, target_header, df)
+        tuple: ((X_train, X_test, y_train, y_test, feature_headers, target_header, df_transformed), meta)
         or (None, error_message) if an error occurs.
     """
     try:
@@ -112,36 +113,93 @@ def load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx=None):
         feature_columns = df.columns[feature_column_indices]
         target_column = df.columns[target_column_idx]
 
-        # Extract features and target.
-        X = df[feature_columns].values
-        y = df[target_column].values
+        # Extract features and target as DataFrames/Series
+        features_df = df[feature_columns].copy()
+        target_series = df[target_column].copy()
 
-        # Handle missing values by dropping rows with NaN.
-        mask = ~(pd.isna(X).any(axis=1) | pd.isna(y))
-        X = X[mask]
-        y = y[mask]
+        # Prepare metadata containers
+        categorical_expansions = []
+        target_encoding = {"encoded": False, "classes": []}
 
-        # Check if we have enough data after cleaning.
-        if len(X) < 2:
+        # Label encode target if non-numeric or object
+        if target_series.dtype == object or not np.issubdtype(target_series.dtype, np.number):
+            target_label_encoder = LabelEncoder()
+            encoded_target = target_label_encoder.fit_transform(target_series.astype(str))
+            target_encoding = {
+                "encoded": True,
+                "classes": list(map(str, target_label_encoder.classes_)),
+            }
+            target_series = pd.Series(encoded_target, index=target_series.index, name=target_column)
+        else:
+            target_series = target_series.astype(float)
+
+        # Detect categorical columns in features
+        categorical_feature_columns = [col for col in features_df.columns if features_df[col].dtype == object]
+        numeric_feature_columns = [col for col in features_df.columns if col not in categorical_feature_columns]
+
+        # One-Hot encode categorical feature columns (no drop_first for transparency)
+        if categorical_feature_columns:
+            # Build metadata mapping before encoding
+            for feature_name in categorical_feature_columns:
+                categories = sorted(map(str, pd.Series(features_df[feature_name].astype(str)).unique()))
+                # Column names that will be created by pandas.get_dummies
+                created = [f"{feature_name}_{cat}" for cat in categories]
+                categorical_expansions.append({
+                    "column": feature_name,
+                    "categories": categories,
+                    "createdColumns": created,
+                })
+            features_df = pd.get_dummies(features_df, columns=categorical_feature_columns, prefix=categorical_feature_columns, dtype=float)
+
+        # Ensure numeric dtype for all features
+        for col in features_df.columns:
+            if not np.issubdtype(features_df[col].dtype, np.number):
+                features_df[col] = pd.to_numeric(features_df[col], errors='coerce')
+
+        # Handle missing values by dropping rows with NaN across X or y
+        combined = pd.concat([features_df, target_series], axis=1)
+        combined = combined.dropna(axis=0, how='any')
+
+        if combined.shape[0] < 2:
             return None, "Not enough valid data rows after cleaning"
 
-        # Split data into train/test sets.
-        # Check that each class has at least 2 samples for stratification
-        unique_classes, class_counts = np.unique(y, return_counts=True)
+        # Split back
+        features_df = combined.drop(columns=[target_column])
+        target_series = combined[target_column]
+
+        features_matrix = features_df.values
+        target_array = target_series.values
+
+        # Split data into train/test sets with stratify when possible
+        unique_classes, class_counts = np.unique(target_array, return_counts=True)
         if np.all(class_counts >= 2):
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.3, random_state=42, stratify=y
+                features_matrix, target_array, test_size=0.3, random_state=42, stratify=target_array
             )
         else:
-            # Not enough samples per class for stratification; fall back to non-stratified split
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.3, random_state=42
+                features_matrix, target_array, test_size=0.3, random_state=42
             )
 
-        feature_headers = list(feature_columns)
+        feature_headers = list(features_df.columns)
         target_header = target_column
 
-        return (X_train, X_test, y_train, y_test, feature_headers, target_header, df), None
+        # Build meta and transformed dataset CSV
+        meta = {
+            "originalFeatureCount": int(len(feature_columns)),
+            "transformedFeatureCount": int(len(feature_headers)),
+            "categoricalExpansions": categorical_expansions,
+            "targetEncoding": target_encoding,
+            "originalColumns": list(df.columns),
+        }
+
+        # Build transformed df (features + target) for download convenience
+        df_transformed = features_df.copy()
+        df_transformed[target_column] = target_series
+
+        # Return core tuple plus meta
+        core = (X_train, X_test, y_train, y_test, feature_headers, target_header, df_transformed)
+        return (core, meta), None
 
     except Exception as e:
         return None, f"Error processing CSV: {str(e)}"
@@ -296,6 +354,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/guide")
+def guide():
+    return render_template("guide.html")
+
+
 @app.route("/list_datasets", methods=["GET"])
 def list_datasets():
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -360,10 +423,11 @@ def run_ga():
         return jsonify({"error": "Target column must be specified"})
 
     # --- Load CSV ---
-    result, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
+    processed, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
     if error:
         return jsonify({"error": error})
 
+    (result, meta) = processed
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
     feature_count = len(feature_headers)
     
@@ -394,11 +458,16 @@ def run_ga():
         "generations": len(ga["history"]),
         "converged": ga["converged"],
         "execTimeSeconds": round(exec_time, 4),
+        "featureEngineering": meta,
+        "transformedCsv": df.to_csv(index=False),
     }
 
     # Add ID column name if specified
     if id_column_idx is not None:
-        response["idColumn"] = df.columns[id_column_idx]
+        try:
+            response["idColumn"] = (meta.get("originalColumns") or [])[int(id_column_idx)]
+        except Exception:
+            pass
 
     return jsonify(response)
 
@@ -413,10 +482,11 @@ def run_variance_threshold():
     if target_column_idx is None:
         return jsonify({"error": "Target column must be specified"})
 
-    result, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
+    processed, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
     if error:
         return jsonify({"error": error})
 
+    (result, meta) = processed
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
 
     start_exec = time.perf_counter()
@@ -440,9 +510,14 @@ def run_variance_threshold():
         "rows": len(df),
         "target": target_header,
         "execTimeSeconds": round(exec_time, 4),
+        "featureEngineering": meta,
+        "transformedCsv": df.to_csv(index=False),
     }
     if id_column_idx is not None:
-        response["idColumn"] = df.columns[id_column_idx]
+        try:
+            response["idColumn"] = (meta.get("originalColumns") or [])[int(id_column_idx)]
+        except Exception:
+            pass
 
     return jsonify(response)
 
@@ -471,10 +546,11 @@ def run_comparison():
     if target_column_idx is None:
         return jsonify({"error": "Target column must be specified"})
 
-    result, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
+    processed, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
     if error:
         return jsonify({"error": error})
 
+    (result, meta) = processed
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
     feature_count = len(feature_headers)
 
@@ -521,6 +597,7 @@ def run_comparison():
             "target": target_header,
             "numFeaturesTotal": feature_count,
             "rows": len(df),
+            "featureEngineering": meta,
         },
         "ga": {
             "bestFitness": round(ga["best_fitness"], 4),
@@ -531,6 +608,7 @@ def run_comparison():
             "converged": ga["converged"],
             "accuracy": round(ga["best_fitness"], 4),
             "execTimeSeconds": round(ga_exec, 4),
+            "transformedCsv": df.to_csv(index=False),
         },
         "varianceThreshold": {
             "thresholdUsed": vt["threshold"],
@@ -551,7 +629,10 @@ def run_comparison():
         },
     }
     if id_column_idx is not None:
-        response["dataset"]["idColumn"] = df.columns[id_column_idx]
+        try:
+            response["dataset"]["idColumn"] = (meta.get("originalColumns") or [])[int(id_column_idx)]
+        except Exception:
+            pass
 
     return jsonify(response)
 
@@ -572,10 +653,11 @@ def run_select_kbest():
     if target_column_idx is None:
         return jsonify({"error": "Target column must be specified"})
 
-    result, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
+    processed, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
     if error:
         return jsonify({"error": error})
 
+    (result, meta) = processed
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
 
     start_exec = time.perf_counter()
@@ -601,9 +683,14 @@ def run_select_kbest():
         "rows": len(df),
         "target": target_header,
         "execTimeSeconds": round(exec_time, 4),
+        "featureEngineering": meta,
+        "transformedCsv": df.to_csv(index=False),
     }
     if id_column_idx is not None:
-        response["idColumn"] = df.columns[id_column_idx]
+        try:
+            response["idColumn"] = (meta.get("originalColumns") or [])[int(id_column_idx)]
+        except Exception:
+            pass
 
     return jsonify(response)
 

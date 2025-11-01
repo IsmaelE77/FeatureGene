@@ -10,10 +10,47 @@ class GAApplication {
             currentFile: null,
             isProcessing: false,
             theme: localStorage.getItem('ga-theme') || 'light',
-            results: null
+            results: null,
+            lastTransformedCsv: null
         };
         
         this.init();
+    }
+
+    formatFeatureEngineering(meta) {
+        if (!meta) return '';
+        const parts = [];
+        if (typeof meta.originalFeatureCount === 'number' && typeof meta.transformedFeatureCount === 'number') {
+            parts.push(`\nFeature engineering: ${meta.originalFeatureCount} ➜ ${meta.transformedFeatureCount}`);
+        }
+        if (meta.targetEncoding && meta.targetEncoding.encoded) {
+            const classes = (meta.targetEncoding.classes || []).join(', ');
+            parts.push(`\nTarget encoding applied. Classes: [${classes}]`);
+        }
+        const exp = Array.isArray(meta.categoricalExpansions) ? meta.categoricalExpansions : [];
+        if (exp.length > 0) {
+            const lines = exp.map(e => `${e.column} → +${(e.createdColumns||[]).length} cols`);
+            parts.push(`\nOne-Hot expansions: ${lines.join('; ')}`);
+        }
+        return parts.length ? `\n${parts.join('')}` : '';
+    }
+
+    downloadTransformed() {
+        const csv = this.state.lastTransformedCsv;
+        if (!csv) {
+            this.showToast('No transformed dataset available yet. Run an analysis first.', 'warning');
+            return;
+        }
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'dataset_transformed.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast('Transformed dataset downloaded.', 'success');
     }
 
     async runSelectKBest() {
@@ -368,7 +405,8 @@ class GAApplication {
 
     handleGAResult(data) {
         this.state.results = { type: 'ga', data };
-        
+        this.state.lastTransformedCsv = data.transformedCsv || null;
+        const feSummary = this.formatFeatureEngineering(data.featureEngineering);
         const selectedCount = data.selectedFeatures.length;
         const idInfo = data.idColumn ? `ID Column: ${data.idColumn}\n` : `No ID column\n`;
         const convergenceInfo = data.converged ? 
@@ -382,7 +420,8 @@ class GAApplication {
             `Exec Time: ${data.execTimeSeconds}s\n` +
             `Selected features: ${selectedCount} out of ${data.featuresCount}\n` +
             `Features: ${data.selectedFeatures.join(', ')}\n` +
-            `Total features: ${data.featuresCount}, Rows: ${data.rows}`;
+            `Total features: ${data.featuresCount}, Rows: ${data.rows}` +
+            `${feSummary}`;
 
         this.updateStatus(statusMessage, 'success');
         
@@ -396,7 +435,8 @@ class GAApplication {
 
     handleVarianceThresholdResult(data) {
         this.state.results = { type: 'variance', data };
-        
+        this.state.lastTransformedCsv = data.transformedCsv || null;
+        const feSummary = this.formatFeatureEngineering(data.featureEngineering);
         const idInfo = data.idColumn ? `ID Column: ${data.idColumn}\n` : `No ID column\n`;
         const statusMessage = 
             `✅ VarianceThreshold Complete!\n${idInfo}Target Column: ${data.target}\n` +
@@ -406,7 +446,8 @@ class GAApplication {
             `Selected features: ${data.numFeaturesSelected} out of ${data.numFeaturesTotal}\n` +
             `Selected: ${data.selectedFeatures.join(', ')}\n` +
             `Removed: ${data.removedFeatures.join(', ')}\n` +
-            `Total features: ${data.numFeaturesTotal}, Rows: ${data.rows}`;
+            `Total features: ${data.numFeaturesTotal}, Rows: ${data.rows}` +
+            `${feSummary}`;
 
         this.updateStatus(statusMessage, 'success');
         
@@ -420,7 +461,8 @@ class GAApplication {
 
     handleSelectKBestResult(data) {
         this.state.results = { type: 'selectkbest', data };
-        
+        this.state.lastTransformedCsv = data.transformedCsv || null;
+        const feSummary = this.formatFeatureEngineering(data.featureEngineering);
         const idInfo = data.idColumn ? `ID Column: ${data.idColumn}\n` : `No ID column\n`;
         const statusMessage = 
             `✅ SelectKBest Complete!\n${idInfo}Target Column: ${data.target}\n` +
@@ -431,7 +473,8 @@ class GAApplication {
             `Selected features: ${data.numFeaturesSelected} out of ${data.numFeaturesTotal}\n` +
             `Selected: ${data.selectedFeatures.join(', ')}\n` +
             `Removed: ${data.removedFeatures.join(', ')}\n` +
-            `Total features: ${data.numFeaturesTotal}, Rows: ${data.rows}`;
+            `Total features: ${data.numFeaturesTotal}, Rows: ${data.rows}` +
+            `${feSummary}`;
 
         this.updateStatus(statusMessage, 'success');
         
@@ -444,7 +487,8 @@ class GAApplication {
 
     handleComparisonResult(data) {
         this.state.results = { type: 'comparison', data };
-        
+        this.state.lastTransformedCsv = (data.ga && data.ga.transformedCsv) ? data.ga.transformedCsv : null;
+        const feSummary = this.formatFeatureEngineering(data.dataset && data.dataset.featureEngineering);
         const idInfo = data.dataset.idColumn ? `ID Column: ${data.dataset.idColumn}\n` : `No ID column\n`;
         const gaConvergence = data.ga.converged ? 
             `Converged at generation ${data.ga.generations}` : 
@@ -482,7 +526,8 @@ class GAApplication {
             `  Selected: ${data.selectKBest.numFeaturesSelected} features\n` +
             `  Features: ${data.selectKBest.selectedFeatures.join(', ')}\n` +
             `  Removed: ${data.selectKBest.removedFeatures.join(', ')}\n\n` +
-            `🏆 WINNER: ${winner} (${topVal})`;
+            `🏆 WINNER: ${winner} (${topVal})` +
+            `${feSummary}`;
 
         this.updateStatus(statusMessage, 'success');
         

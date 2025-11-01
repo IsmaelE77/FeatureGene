@@ -1,22 +1,28 @@
 <div class="results-card">
     <div class="results-header">
-        <h3 class="results-title flex items-center gap-2">
+        <h3 class="results-title flex items-center gap-2" style="padding-right: 10px;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             Status
         </h3>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2 mt-2 sm:mt-0 sm:flex-nowrap sm:justify-end">
+            <button onclick="window.gaApp.downloadTransformed()" class="btn btn-sm btn-secondary w-full sm:w-auto shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path>
+                </svg>
+                Download CSV
+            </button>
 
-            <button onclick="window.gaApp.clearStatus()" class="btn btn-sm btn-secondary">
+            <button onclick="window.gaApp.clearStatus()" class="btn btn-sm btn-secondary w-full sm:w-auto shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
                     </path>
                 </svg>
                 Clear
             </button>
-            <button onclick="window.gaApp.copyResults()" class="btn btn-sm btn-secondary">
+            <button onclick="window.gaApp.copyResults()" class="btn btn-sm btn-secondary w-full sm:w-auto shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="text-2xl">📘</div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Usage Guide</h2>
+    </div>
+    <p class="text-gray-600 dark:text-gray-300">Learn how to prepare your dataset, run feature selection, and interpret results.</p>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">🧬 Dataset Compatibility and Encoding Support</h3>
+    <p class="text-gray-600 dark:text-gray-300 mb-4">This application supports both <strong>numeric</strong> and <strong>categorical</strong> datasets for feature selection using Genetic Algorithm (GA) and Variance Threshold.</p>
+
+    <div class="my-4 border-t border-gray-200 dark:border-gray-700"></div>
+
+    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">✅ Supported Dataset Types</h4>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm text-left">
+        <thead class="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+          <tr>
+            <th class="px-4 py-2">Type</th>
+            <th class="px-4 py-2">Description</th>
+            <th class="px-4 py-2">Example</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+          <tr>
+            <td class="px-4 py-2 font-medium">Numeric-only</td>
+            <td class="px-4 py-2">All features and target are numeric.</td>
+            <td class="px-4 py-2">Age, Height, Weight → 0/1</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Text target</td>
+            <td class="px-4 py-2">Target column contains text labels. Automatically encoded with <strong>Label Encoding</strong>.</td>
+            <td class="px-4 py-2">Target: “M” / “B” (Malignant/Benign)</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Categorical features</td>
+            <td class="px-4 py-2">One or more columns contain categorical text values. Automatically encoded with <strong>One-Hot Encoding</strong>.</td>
+            <td class="px-4 py-2">Gender, Region, Country, Diagnosis Type</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">🗂️ Preparing Your Dataset</h3>
+      <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+        <li><strong>Format</strong>: CSV with a header row.</li>
+        <li><strong>Columns</strong>: Optionally include an ID column (index field).</li>
+        <li><strong>Missing values</strong>: Rows with missing values are dropped during preprocessing.</li>
+        <li><strong>Target</strong>: Specify the column index of the target.</li>
+      </ul>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">⚙️ Encoding Behavior</h3>
+      <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+        <li><strong>Label Encoding</strong> is applied to non-numeric targets. Classes are shown in results.</li>
+        <li><strong>One-Hot Encoding</strong> is applied to textual feature columns without dropping a category.</li>
+        <li>All features are coerced to numeric; non-convertible values become NaN and rows are removed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">🚀 Running Analyses</h3>
+      <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+        <li>Upload a CSV or load a built-in dataset.</li>
+        <li>Set <strong>ID Column</strong> (optional) and <strong>Target Column</strong> (required) by index.</li>
+        <li>Run <strong>GA</strong>, <strong>Variance Threshold</strong>, <strong>SelectKBest</strong>, or <strong>Comparison</strong>.</li>
+      </ul>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">📈 Interpreting Results</h3>
+      <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+        <li>See selected features and performance metrics.</li>
+        <li>View <strong>Feature Engineering</strong> summary:
+          <ul class="list-disc ml-5 mt-1">
+            <li>Original → transformed feature count</li>
+            <li>Target classes used by LabelEncoder</li>
+            <li>One-Hot expansions per column (column → +N cols)</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">💾 Exporting</h3>
+    <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+      <li>Use the <strong>Download CSV</strong> button in the Status card to export the transformed dataset.</li>
+      <li>Charts can be exported via the chart export option.</li>
+    </ul>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">❓ FAQ</h3>
+    <ul class="list-disc ml-5 space-y-2 text-gray-700 dark:text-gray-300">
+      <li><strong>Why did my feature count increase?</strong> One-Hot Encoding expands categorical columns into multiple binary columns.</li>
+      <li><strong>Where did my ID column go?</strong> It’s excluded from modeling but its original name is preserved in results.</li>
+      <li><strong>Can I change encoding behavior?</strong> Ask to add options like dropping the first dummy or limiting categories.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

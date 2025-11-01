@@ -221,31 +221,17 @@ def run_variance_threshold_selection(
     Returns dict with:
       - threshold, accuracy, selected_features, removed_features
     """
-    try:
-        selector = VarianceThreshold(threshold=threshold)
-        selector.fit(X_train)
-        mask = selector.get_support(indices=True)
-        selected_features = [feature_headers[i] for i in mask]
-        removed_features = [f for i, f in enumerate(feature_headers) if i not in set(mask)]
+    selector = VarianceThreshold(threshold=threshold)
+    selector.fit(X_train)
 
-        if len(mask) == 0:
-            accuracy = 0.0
-        else:
-            X_train_sel = selector.transform(X_train)
-            X_test_sel = selector.transform(X_test)
-            model = SGDClassifier(
-                loss="log_loss",
-                max_iter=200,
-                tol=1e-3,
-                n_jobs=-1,
-                random_state=42,
-            )
-            model.fit(X_train_sel, y_train)
-            accuracy = float(model.score(X_test_sel, y_test))
-    except Exception:
-        selected_features = []
-        removed_features = list(feature_headers)
-        accuracy = 0.0
+    mask = selector.get_support(indices=True)
+    chromosome = [1 if i in mask else 0 for i in range(len(feature_headers))]
+
+    accuracy = evaluate_fitness(chromosome, X_train, X_test, y_train, y_test)
+
+    selected_features = [feature_headers[i] for i in mask]
+    removed_features = [f for i, f in enumerate(feature_headers) if i not in set(mask)]
+
     return {
         "threshold": float(threshold),
         "accuracy": float(accuracy),

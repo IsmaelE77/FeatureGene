@@ -9,6 +9,37 @@ class APIClient {
         this.baseURL = window.location.origin;
     }
 
+
+    async listDatasets() {
+        try {
+            const response = await fetch(`${this.baseURL}/list_datasets`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            return result.datasets || [];
+        } catch (error) {
+            console.error('Failed to list datasets:', error);
+            throw error;
+        }
+    }
+
+    async getDataset(name) {
+        try {
+            const response = await fetch(`${this.baseURL}/get_dataset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            return result;
+        } catch (error) {
+            console.error('Failed to fetch dataset:', error);
+            throw error;
+        }
+    }
+    
     async makeRequest(endpoint, data) {
         try {
             const response = await fetch(`${this.baseURL}${endpoint}`, {

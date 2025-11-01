@@ -6,6 +6,16 @@
         Upload Dataset
     </h3>
     
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Choose from existing</label>
+        <div class="flex gap-2">
+            <select id="datasetSelect" class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                <option value="">-- Select dataset --</option>
+            </select>
+            <button id="loadDatasetBtn" class="btn">Load</button>
+        </div>
+    </div>
+
     <div id="fileUploadArea" class="file-upload-area">
         <div class="file-upload-icon">
             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">

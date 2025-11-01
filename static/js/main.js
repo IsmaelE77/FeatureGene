@@ -20,6 +20,7 @@ class GAApplication {
         this.setupTheme();
         this.setupEventListeners();
         this.initializeComponents();
+        this.setupDatasetSelector();
         this.updateStatus('Application initialized. Ready to upload dataset.');
     }
 
@@ -70,6 +71,49 @@ class GAApplication {
         this.uiComponents = new UIComponents(this);
     }
 
+      async setupDatasetSelector() {
+        const select = document.getElementById('datasetSelect');
+        const btn = document.getElementById('loadDatasetBtn');
+        if (!select || !btn) return;
+        try {
+            const datasets = await this.apiClient.listDatasets();
+            while (select.firstChild) select.removeChild(select.firstChild);
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select dataset --';
+            select.appendChild(placeholder);
+            datasets.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            this.showToast('Failed to load dataset list', 'error');
+        }
+        btn.addEventListener('click', () => this.loadSelectedDataset());
+    }
+
+    async loadSelectedDataset() {
+        const select = document.getElementById('datasetSelect');
+        if (!select || !select.value) {
+            this.showToast('Please select a dataset.', 'error');
+            return;
+        }
+        this.setProcessingState(true);
+        try {
+            const result = await this.apiClient.getDataset(select.value);
+            const csvData = result.csvData || '';
+            const size = new Blob([csvData]).size;
+            const file = { name: result.name || select.value, size };
+            this.onFileUploaded(file, csvData);
+        } catch (e) {
+            this.handleError(e);
+        } finally {
+            this.setProcessingState(false);
+        }
+    }
+    
     toggleTheme(theme) {
         this.state.theme = theme;
         

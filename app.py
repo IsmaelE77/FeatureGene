@@ -377,7 +377,7 @@ def run_comparison():
     convergence_threshold = data.get("convergenceThreshold")
     if convergence_threshold is not None:
         convergence_threshold = float(convergence_threshold)
-    vt_threshold = float(data.get("vtThreshold", 0.0))
+    vt_threshold = float(data.get("threshold", 0.0))
     csv_content = data.get("csvData", "")
     id_column_idx = data.get("idColumn")
     target_column_idx = data.get("targetColumn")

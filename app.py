@@ -276,7 +276,8 @@ def run_ga():
 
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
     feature_count = len(feature_headers)
-
+    
+    start_exec = time.perf_counter()
     ga = run_ga_feature_selection(
         X_train,
         X_test,
@@ -289,6 +290,7 @@ def run_ga():
         max_gen,
         convergence_threshold,
     )
+    exec_time = time.perf_counter() - start_exec
 
     # Prepare response
     response = {
@@ -300,7 +302,8 @@ def run_ga():
         "rows": len(df),
         "target": target_header,
         "generations": len(ga["history"]),
-        "converged": ga["converged"]
+        "converged": ga["converged"],
+        "execTimeSeconds": round(exec_time, 4),
     }
 
     # Add ID column name if specified

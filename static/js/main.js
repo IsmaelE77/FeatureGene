@@ -311,6 +311,7 @@ class GAApplication {
             `✅ GA Complete!\n${idInfo}Target Column: ${data.target}\n` +
             `${convergenceInfo}\n` +
             `Best fitness: ${data.bestFitness}\n` +
+            `Exec Time: ${data.execTimeSeconds}s\n` +
             `Selected features: ${selectedCount} out of ${data.featuresCount}\n` +
             `Features: ${data.selectedFeatures.join(', ')}\n` +
             `Total features: ${data.featuresCount}, Rows: ${data.rows}`;

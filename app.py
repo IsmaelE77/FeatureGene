@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import SGDClassifier
+from sklearn.feature_selection import VarianceThreshold
 import random
 import io
 import time

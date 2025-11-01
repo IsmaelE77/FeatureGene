@@ -1,0 +1,32 @@
+<div class="parameter-group">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        SelectKBest
+    </h3>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="parameter-label" for="kbestScoreFunc">Score Function</label>
+            <select id="kbestScoreFunc" class="parameter-input">
+                <option value="f_classif">f_classif (ANOVA)</option>
+                <option value="chi2">chi2</option>
+                <option value="mutual_info">mutual_info</option>
+            </select>
+            <p class="parameter-help">Choose the statistical test to score features.</p>
+        </div>
+        <div>
+            <label class="parameter-label" for="kbestK">K (features to keep)</label>
+            <input type="number" id="kbestK" class="parameter-input" placeholder="auto" min="1" step="1">
+            <p class="parameter-help">Leave empty to auto-select ~50% of features.</p>
+        </div>
+    </div>
+
+    <button onclick="runSelectKBest()" class="btn btn-secondary w-full mt-4">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+        Run SelectKBest
+    </button>
+</div>

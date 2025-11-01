@@ -16,6 +16,30 @@ class GAApplication {
         this.init();
     }
 
+    async runSelectKBest() {
+        if (!this.state.csvData) {
+            this.showToast('Please upload a CSV file first!', 'error');
+            return;
+        }
+
+        const targetColumn = document.getElementById('targetColumn')?.value;
+        if (!targetColumn && targetColumn !== '0') {
+            this.showToast('Please specify the target column!', 'error');
+            return;
+        }
+
+        this.setProcessingState(true);
+        
+        try {
+            const result = await this.apiClient.runSelectKBest();
+            this.handleSelectKBestResult(result);
+        } catch (error) {
+            this.handleError(error);
+        } finally {
+            this.setProcessingState(false);
+        }
+    }
+
     init() {
         this.setupTheme();
         this.setupEventListeners();
@@ -113,7 +137,7 @@ class GAApplication {
             this.setProcessingState(false);
         }
     }
-    
+
     toggleTheme(theme) {
         this.state.theme = theme;
         
@@ -394,6 +418,30 @@ class GAApplication {
         this.showToast('Variance Threshold completed successfully!', 'success');
     }
 
+    handleSelectKBestResult(data) {
+        this.state.results = { type: 'selectkbest', data };
+        
+        const idInfo = data.idColumn ? `ID Column: ${data.idColumn}\n` : `No ID column\n`;
+        const statusMessage = 
+            `✅ SelectKBest Complete!\n${idInfo}Target Column: ${data.target}\n` +
+            `Score Func: ${data.scoreFuncUsed}\n` +
+            `K Used: ${data.kUsed}\n` +
+            `Accuracy: ${data.accuracy}\n` +
+            `Exec Time: ${data.execTimeSeconds}s\n` +
+            `Selected features: ${data.numFeaturesSelected} out of ${data.numFeaturesTotal}\n` +
+            `Selected: ${data.selectedFeatures.join(', ')}\n` +
+            `Removed: ${data.removedFeatures.join(', ')}\n` +
+            `Total features: ${data.numFeaturesTotal}, Rows: ${data.rows}`;
+
+        this.updateStatus(statusMessage, 'success');
+        
+        if (this.chartManager) {
+            this.chartManager.renderSelectKBestChart(data);
+        }
+        
+        this.showToast('SelectKBest completed successfully!', 'success');
+    }
+
     handleComparisonResult(data) {
         this.state.results = { type: 'comparison', data };
         
@@ -401,9 +449,15 @@ class GAApplication {
         const gaConvergence = data.ga.converged ? 
             `Converged at generation ${data.ga.generations}` : 
             `Completed ${data.ga.generations} generations (max reached)`;
-        
-        const winner = data.ga.accuracy > data.varianceThreshold.accuracy ? 'Genetic Algorithm' : 
-                      data.varianceThreshold.accuracy > data.ga.accuracy ? 'VarianceThreshold' : 'Tie';
+
+        const scores = [
+            { name: 'Genetic Algorithm', value: data.ga.accuracy },
+            { name: 'VarianceThreshold', value: data.varianceThreshold.accuracy },
+            { name: 'SelectKBest', value: data.selectKBest.accuracy }
+        ];
+        const top = scores.reduce((a, b) => (b.value > a.value ? b : a));
+        const winner = top.name;
+        const topVal = top.value;
         
         const statusMessage = 
             `🔍 COMPARISON RESULTS\n${idInfo}Target Column: ${data.dataset.target}\n` +
@@ -421,7 +475,14 @@ class GAApplication {
             `  Selected: ${data.varianceThreshold.numFeaturesSelected} features\n` +
             `  Features: ${data.varianceThreshold.selectedFeatures.join(', ')}\n` +
             `  Removed: ${data.varianceThreshold.removedFeatures.join(', ')}\n\n` +
-            `🏆 WINNER: ${winner} (${Math.max(data.ga.accuracy, data.varianceThreshold.accuracy)})`;
+            `🧪 SELECTKBEST:\n` +
+            `  Score: ${data.selectKBest.scoreFuncUsed}, k=${data.selectKBest.kUsed}\n` +
+            `  Accuracy: ${data.selectKBest.accuracy}\n` +
+            `  Exec Time: ${data.selectKBest.execTimeSeconds}s\n` +
+            `  Selected: ${data.selectKBest.numFeaturesSelected} features\n` +
+            `  Features: ${data.selectKBest.selectedFeatures.join(', ')}\n` +
+            `  Removed: ${data.selectKBest.removedFeatures.join(', ')}\n\n` +
+            `🏆 WINNER: ${winner} (${topVal})`;
 
         this.updateStatus(statusMessage, 'success');
         
@@ -570,6 +631,14 @@ function runGA() {
 function runVarianceThreshold() {
     if (window.gaApp) {
         window.gaApp.runVarianceThreshold();
+    } else {
+        console.error('GA Application not initialized');
+    }
+}
+
+function runSelectKBest() {
+    if (window.gaApp) {
+        window.gaApp.runSelectKBest();
     } else {
         console.error('GA Application not initialized');
     }

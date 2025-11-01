@@ -12,6 +12,89 @@ class ChartManager {
         this.setupChartContainer();
     }
 
+    renderSelectKBestChart(data) {
+        this.destroyCurrentChart();
+
+        if (!this.chartContainer) return;
+
+        // Ensure container height fits one chart
+        this.chartContainer.style.height = '400px';
+        // Reset container to a single canvas layout
+        this.chartContainer.innerHTML = '<canvas id="chart"></canvas>';
+        // Get canvas
+        const canvas = this.chartContainer.querySelector('canvas');
+        if (!canvas) {
+            console.error('Canvas not found in chart container');
+            return;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        this.currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Selected Features', 'Removed Features'],
+                datasets: [{
+                    label: 'Feature Count',
+                    data: [data.numFeaturesSelected, data.removedFeatures.length],
+                    backgroundColor: [
+                        this.getThemeColor('success'),
+                        this.getThemeColor('error')
+                    ],
+                    borderColor: [
+                        this.getThemeColor('success', 0.8),
+                        this.getThemeColor('error', 0.8)
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `SelectKBest (k=${data.kUsed}, score=${data.scoreFuncUsed})`,
+                        font: { size: 16, weight: 'bold' },
+                        color: this.getThemeColor('text')
+                    },
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: this.getThemeColor('background'),
+                        titleColor: this.getThemeColor('text'),
+                        bodyColor: this.getThemeColor('text'),
+                        borderColor: this.getThemeColor('border'),
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y} features`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: { color: this.getThemeColor('text'), font: { weight: 'bold' } }
+                    },
+                    y: {
+                        display: true,
+                        title: { display: true, text: 'Number of Features', color: this.getThemeColor('text') },
+                        grid: { color: this.getThemeColor('grid'), drawBorder: false },
+                        ticks: { color: this.getThemeColor('text'), stepSize: 1 },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
     setupChartContainer() {
         if (!this.chartContainer) {
             console.warn('Chart container not found');
@@ -357,12 +440,20 @@ class ChartManager {
         const finalCompareChart = new Chart(ctx2, {
             type: 'bar',
             data: {
-                labels: ['GA (final)', 'Variance Threshold'],
+                labels: ['GA (final)', 'Variance Threshold', 'SelectKBest'],
                 datasets: [{
                     label: 'Accuracy',
-                    data: [data.ga.accuracy, data.varianceThreshold.accuracy],
-                    backgroundColor: [this.getThemeColor('primary', 0.6), this.getThemeColor('secondary', 0.6)],
-                    borderColor: [this.getThemeColor('primary'), this.getThemeColor('secondary')],
+                    data: [data.ga.accuracy, data.varianceThreshold.accuracy, data.selectKBest.accuracy],
+                    backgroundColor: [
+                        this.getThemeColor('primary', 0.6),
+                        this.getThemeColor('secondary', 0.6),
+                        this.getThemeColor('success', 0.6)
+                    ],
+                    borderColor: [
+                        this.getThemeColor('primary'),
+                        this.getThemeColor('secondary'),
+                        this.getThemeColor('success')
+                    ],
                     borderWidth: 2,
                     borderRadius: 8,
                     borderSkipped: false
@@ -374,7 +465,7 @@ class ChartManager {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Final Accuracy: GA vs Variance Threshold',
+                        text: 'Final Accuracy: GA vs Variance Threshold vs SelectKBest',
                         color: this.getThemeColor('text')
                     },
                     legend: { display: false },

@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import SGDClassifier
-from sklearn.feature_selection import VarianceThreshold
+from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif, chi2, mutual_info_classif
 import random
 import io
 import time
@@ -239,48 +239,57 @@ def run_variance_threshold_selection(
         "removed_features": removed_features,
     }
 
+def run_select_kbest_selection(
+    X_train,
+    X_test,
+    y_train,
+    y_test,
+    feature_headers,
+    k: int,
+    score_func_name: str,
+):
+    """
+    Execute SelectKBest selection and evaluate a classifier on selected features.
+
+    Returns dict with:
+      - kUsed, scoreFuncUsed, accuracy, selected_features, removed_features
+    """
+    score_funcs = {
+        "f_classif": f_classif,
+        "chi2": chi2,
+        "mutual_info": mutual_info_classif,
+    }
+    score_func = score_funcs.get(score_func_name, f_classif)
+
+    # Ensure k is within valid range
+    n_features = len(feature_headers)
+    if k is None or k <= 0:
+        k = max(1, n_features // 2)
+    k = min(k, n_features)
+
+    selector = SelectKBest(score_func=score_func, k=k)
+    selector.fit(X_train, y_train)
+
+    mask = selector.get_support(indices=True)
+    chromosome = [1 if i in mask else 0 for i in range(n_features)]
+
+    accuracy = evaluate_fitness(chromosome, X_train, X_test, y_train, y_test)
+
+    selected_features = [feature_headers[i] for i in mask]
+    removed_features = [f for i, f in enumerate(feature_headers) if i not in set(mask)]
+
+    return {
+        "kUsed": int(k),
+        "scoreFuncUsed": score_func_name if score_func_name in score_funcs else "f_classif",
+        "accuracy": float(accuracy),
+        "selected_features": selected_features,
+        "removed_features": removed_features,
+    }
+
 # ---------- Flask routes ----------
 @app.route("/")
 def index():
     return render_template("index.html")
-
-@app.route("/list_datasets", methods=["GET"])
-def list_datasets():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    ds_dir = os.path.join(base_dir, "dataset")
-    try:
-        if not os.path.isdir(ds_dir):
-            return jsonify({"datasets": []})
-        files = [f for f in os.listdir(ds_dir) if f.lower().endswith(".csv")]
-        return jsonify({"datasets": files})
-    except Exception as e:
-        return jsonify({"error": f"Failed to list datasets: {str(e)}"})
-
-@app.route("/get_dataset", methods=["POST"])
-def get_dataset():
-    data = request.json or {}
-    name = data.get("name")
-    if not name:
-        return jsonify({"error": "Dataset name is required"})
-
-    if os.path.sep in name or os.path.altsep and os.path.altsep in name:
-        return jsonify({"error": "Invalid dataset name"})
-    if not name.lower().endswith(".csv"):
-        return jsonify({"error": "Only CSV datasets are supported"})
-
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    ds_dir = os.path.join(base_dir, "dataset")
-    file_path = os.path.join(ds_dir, name)
-
-    if not os.path.isfile(file_path):
-        return jsonify({"error": f"Dataset not found: {name}"})
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            csv_content = f.read()
-        return jsonify({"name": name, "csvData": csv_content})
-    except Exception as e:
-        return jsonify({"error": f"Failed to read dataset: {str(e)}"})
 
 @app.route("/run_ga", methods=["POST"])
 def run_ga():
@@ -405,6 +414,13 @@ def run_comparison():
     if convergence_threshold is not None:
         convergence_threshold = float(convergence_threshold)
     vt_threshold = float(data.get("threshold", 0.0))
+    # SelectKBest params
+    kb_k_raw = data.get("k")
+    try:
+        kb_k = int(kb_k_raw) if kb_k_raw is not None and kb_k_raw != "" else None
+    except Exception:
+        kb_k = None
+    kb_score_func = data.get("scoreFunc", "f_classif")
     csv_content = data.get("csvData", "")
     id_column_idx = data.get("idColumn")
     target_column_idx = data.get("targetColumn")
@@ -445,6 +461,18 @@ def run_comparison():
     )
     vt_exec = time.perf_counter() - vt_start
 
+    kb_start = time.perf_counter()
+    kb = run_select_kbest_selection(
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        feature_headers,
+        kb_k,
+        kb_score_func,
+    )
+    kb_exec = time.perf_counter() - kb_start
+
     response = {
         "dataset": {
             "target": target_header,
@@ -469,41 +497,72 @@ def run_comparison():
             "numFeaturesSelected": len(vt["selected_features"]),
             "execTimeSeconds": round(vt_exec, 4),
         },
+        "selectKBest": {
+            "kUsed": kb["kUsed"],
+            "scoreFuncUsed": kb["scoreFuncUsed"],
+            "accuracy": round(kb["accuracy"], 4),
+            "selectedFeatures": kb["selected_features"],
+            "removedFeatures": kb["removed_features"],
+            "numFeaturesSelected": len(kb["selected_features"]),
+            "execTimeSeconds": round(kb_exec, 4),
+        },
     }
     if id_column_idx is not None:
         response["dataset"]["idColumn"] = df.columns[id_column_idx]
 
     return jsonify(response)
-from sklearn.feature_selection import SelectKBest, f_classif
 
-def compare_ga_with_statistical(csv_content, target_column_idx, id_column_idx=None):
+
+@app.route("/run_select_kbest", methods=["POST"])
+def run_select_kbest():
+    data = request.json
+    k = data.get("k")
+    try:
+        k = int(k) if k is not None and k != "" else None
+    except Exception:
+        k = None
+    score_func = data.get("scoreFunc", "f_classif")
+    csv_content = data.get("csvData", "")
+    id_column_idx = data.get("idColumn")
+    target_column_idx = data.get("targetColumn")
+
+    if target_column_idx is None:
+        return jsonify({"error": "Target column must be specified"})
 
     result, error = load_and_preprocess_csv(csv_content, target_column_idx, id_column_idx)
     if error:
-        return {"error": error}
+        return jsonify({"error": error})
 
     X_train, X_test, y_train, y_test, feature_headers, target_header, df = result
 
-    population = initialize_population(pop_size=10, feature_count=len(feature_headers))
-    ga_fitness_scores = [evaluate_fitness(ch, X_train, X_test, y_train, y_test) for ch in population]
-    ga_best_score = max(ga_fitness_scores)
+    start_exec = time.perf_counter()
+    kb = run_select_kbest_selection(
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        feature_headers,
+        k,
+        score_func,
+    )
+    exec_time = time.perf_counter() - start_exec
 
-    k = max(1, len(feature_headers) // 2)
-    selector = SelectKBest(score_func=f_classif, k=k)
-    X_train_selected = selector.fit_transform(X_train, y_train)
-    X_test_selected = selector.transform(X_test)
-
-    model = LogisticRegression(max_iter=500)
-    model.fit(X_train_selected, y_train)
-    kbest_score = accuracy_score(y_test, model.predict(X_test_selected))
-
-    comparison = {
-        "GA_Best_Fitness": round(ga_best_score, 4),
-        "SelectKBest_Accuracy": round(kbest_score, 4),
-        "Winner": "Genetic Algorithm" if ga_best_score > kbest_score else "Traditional Statistical Method"
+    response = {
+        "kUsed": kb["kUsed"],
+        "scoreFuncUsed": kb["scoreFuncUsed"],
+        "accuracy": round(kb["accuracy"], 4),
+        "selectedFeatures": kb["selected_features"],
+        "removedFeatures": kb["removed_features"],
+        "numFeaturesSelected": len(kb["selected_features"]),
+        "numFeaturesTotal": len(feature_headers),
+        "rows": len(df),
+        "target": target_header,
+        "execTimeSeconds": round(exec_time, 4),
     }
+    if id_column_idx is not None:
+        response["idColumn"] = df.columns[id_column_idx]
 
-    return comparison
+    return jsonify(response)
 
 
 if __name__ == "__main__":

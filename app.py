@@ -25,7 +25,7 @@ def create_random_chromosome(feature_count, true_ratio=0.3):
 
 
 
-def initialize_population(pop_size, feature_count, true_ratio=0.7):
+def initialize_population(pop_size, feature_count, true_ratio=0.3):
     return [create_random_chromosome(feature_count, true_ratio) for _ in range(pop_size)]
 
 

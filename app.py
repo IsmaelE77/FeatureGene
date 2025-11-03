@@ -25,7 +25,7 @@ def create_random_chromosome(feature_count, true_ratio=0.3):
 
 
 
-def initialize_population(pop_size, feature_count, true_ratio=0.3):
+def initialize_population(pop_size, feature_count, true_ratio=0.05):
     return [create_random_chromosome(feature_count, true_ratio) for _ in range(pop_size)]
 
 
@@ -46,7 +46,7 @@ def evaluate_fitness(chromosome, X_train, X_test, y_train, y_test):
             return 0.0
 
         model = SGDClassifier(
-            loss="log_loss",
+            loss="hinge",
             max_iter=1000,
             tol=1e-3,
             random_state=42

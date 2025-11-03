@@ -52,7 +52,7 @@ def evaluate_fitness(chromosome, X_train, X_test, y_train, y_test):
             random_state=42
         )
 
-        with parallel_backend("threading", n_jobs=1):
+        with parallel_backend("threading", n_jobs=2):
             model.fit(X_train_selected, y_train)
 
         accuracy = model.score(X_test_selected, y_test)

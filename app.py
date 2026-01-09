@@ -46,7 +46,7 @@ def evaluate_fitness(chromosome, X_train, X_test, y_train, y_test):
             return 0.0
 
         model = SGDClassifier(
-            loss="hinge",
+            loss="log_loss",
             max_iter=1000,
             tol=1e-3,
             random_state=42
@@ -253,7 +253,8 @@ def run_ga_feature_selection(
 
         new_pop = []
         while len(new_pop) < pop_size:
-            p1, p2 = random.sample(population, 2)
+            p1 = roulette_wheel_selection(population, fitnesses)
+            p2 = roulette_wheel_selection(population, fitnesses)
             c1, c2 = crossover(p1, p2, crossover_rate)
             new_pop.append(mutate(c1, mutation_rate))
             if len(new_pop) < pop_size:
@@ -268,6 +269,23 @@ def run_ga_feature_selection(
         "converged": bool(converged),
         "selected_features": selected_features,
     }
+
+def roulette_wheel_selection(population, fitnesses):
+    total_fitness = sum(fitnesses)
+
+    if total_fitness == 0:
+        return random.choice(population)
+
+    pick = random.uniform(0, total_fitness)
+    current = 0.0
+
+    for individual, fitness in zip(population, fitnesses):
+        current += fitness
+        if current >= pick:
+            return individual
+
+    return population[-1]
+
 
 def run_variance_threshold_selection(
     X_train,
